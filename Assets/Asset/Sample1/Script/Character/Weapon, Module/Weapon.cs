@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using System;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class Weapon
@@ -21,7 +22,7 @@ public class Weapon
 	public int rangeAOE; //phạm vi chịu damageAOE, theo công thức x,y = rangeAOE. với mục tiêu gốc là 0,0 và phạm vi sẽ từ 0,0 đến +x,+y và -x,-y.
 
 	public float rangeDecay; //tỷ lệ giảm sát thương khi ngoài tầm tấn công hiệu quả của Đơn vị.
-
+	public float pointBlankBonus = 1.5f; // sát thương tăng thêm khi mục tiêu ở ô liền kề. Chỉ dành cho loại Shrapnel. Cố định 1.5f
 
     public enum DamageType //loại sát thương, không ảnh hưởng đến các cơ chế giáp, nhưng liên quan đến các phương thức tấn công và khởi tạo vũ khí
 	{
@@ -39,113 +40,220 @@ public class Weapon
 		AntiMaterialCannon, //Pháo hạng nặng, Hỏa lực cực lớn, lượng đạn thấp, tốc độ sát thương thấp, vùng sát thương nhỏ
 		Laser, //Súng năng lượng, hỏa lực trung bình yếu, lượng đạn trung bình, tốc độ sát thương rất cao
 		HeavyBomber, //Sóng xung kích, hỏa lực cao, lượng đạn thấp, tốc độ sát thương trung bình, vùng sát thương lớn
-		Melee, //Vũ khí cận chiến, sát thương cao, không cần đạn, tốc độ sát thương thấp đến cao.
+		Shrapnel, //Vũ khí tầm gần, bắn chùm đạn vào mục tiêu. sát thương mạnh ở tầm gần nhưng giảm rõ rệt ở xa.
 
 		MonsterStrike, //đòn tấn công cận chiến của quái vật
 		MonsterRangedStrike //đòn tấn công tầm xa của quái vật
     }
 	public WeaponType weaponType;
-
-	public void SetDamageBase(float amount)
-	{
-		if (amount >= 1)
-		{
-			damageBase = amount;
-		}
-		else damageBase = 1;
-	}
 	
-	public void SetDamageInterval(float amount)
+    //Weapon Type
+	public WeaponType SetWeaponType(bool random, string value) 
 	{
-		if (amount >= 0.2)
+		WeaponType Type;
+		if (random)
 		{
-			damageInterval = amount;
-		}
-		else damageInterval = 0.2f;
-	}
-
-	public void SetAoeState(bool state, float amount, int range)
-	{
-		if (state)
+            Type = UnityEngine.Random.Range(1, 7) switch
+            {
+                2 => WeaponType.AutoCannon,
+                3 => WeaponType.AntiMaterialCannon,
+                4 => WeaponType.Laser,
+                5 => WeaponType.HeavyBomber,
+                6 => WeaponType.Shrapnel,
+                _ => WeaponType.SiegeCannon,
+            };
+        }
+		else
 		{
-			AOEdamage = true;
-			if (amount > 0) { damageAOEbase = amount; } else { damageAOEbase = 1; }
-			if (range >= 1) { rangeAOE = range; } else { rangeAOE = 1; }
-		}
-		else { AOEdamage = false; damageAOEbase = 0; rangeAOE = 0; }
-	}
-
-	public void SetRangeDecay(float decay)
-	{
-		if (decay <= 0.99990f)
-		{
-			rangeDecay = decay;
-		}
-		else rangeDecay = 0;
-	}
-
-	public void SetAmmunitionState(bool state, int amount)
-	{
-			if (state)
+			Type = value switch
 			{
-				canHaveAmmunition = true;
-				if (amount >= 1)
-				{
-					ammunitionBase = amount;
-				}
-				else ammunitionBase = 100;
-			}
-			else { canHaveAmmunition = false; ammunitionBase = 0; }
+				"AutoCannon" => WeaponType.AutoCannon,
+				"AntiMaterialCannon" => WeaponType.AntiMaterialCannon,
+				"Laser" => WeaponType.Laser,
+				"HeavyBomber" => WeaponType.HeavyBomber,
+				"Shrapnel" => WeaponType.Shrapnel,
+				"MonsterStrike" => WeaponType.MonsterStrike,
+				"MonsterRangedStrike" => WeaponType.MonsterRangedStrike,
+				_ => WeaponType.SiegeCannon,
+			};
+		}
+		return Type;
     }
-	
-	public void SetReloadState(bool state, int count, float interval)
-	{
-			if (state)
-			{
-				needReload = true;
-
-				if (count >= 1) { damageCount = count; }
-				else damageCount = 1;
-
-				if (interval >= 1.5f) { reloadInterval = interval; }
-				else reloadInterval = 1.5f;
-			}
-			else
-			{
-				needReload = false;
-				damageCount = 0;
-				reloadInterval = 0;
-			}
-    }
-
-	public void SetDamageType(string type)
-	{
-		switch (type)
-		{
-			case "Heat": damageType = DamageType.Heat; break;
-			case "Energy": damageType = DamageType.Energy; break;
-			case "Bio": damageType= DamageType.Bio; break;
-			default: damageType = DamageType.Kinetic;
-				break;
-		}
-	}
-	
-	public void SetWeaponType(string type) 
-	{
-        weaponType = type switch
+    
+    //Damage Type
+    public DamageType SetDamageType(bool random, string value)
+    {
+        DamageType Type;
+        if (random)
         {
-            "AutoCannon" => WeaponType.AutoCannon,
-            "AntiMaterialCannon" => WeaponType.AntiMaterialCannon,
-            "Laser" => WeaponType.Laser,
-            "HeavyBomber" => WeaponType.HeavyBomber,
-            "Melee" => WeaponType.Melee,
-            "MonsterStrike" => WeaponType.MonsterStrike,
-            "MonsterRangedStrike" => WeaponType.MonsterRangedStrike,
-            _ => WeaponType.SiegeCannon,
-        };
+            Type = UnityEngine.Random.Range(1, 5) switch
+            {
+                2 => DamageType.Energy,
+                3 => DamageType.Heat,
+                4 => DamageType.Bio,
+                _ => DamageType.Kinetic,
+            };
+        }
+        else
+        {
+            Type = value switch
+            {
+                "Energy" => DamageType.Energy,
+                "Heat" => DamageType.Heat,
+                "Bio" => DamageType.Bio,
+                _ => DamageType.Kinetic,
+            };
+        }
+        return Type;
     }
 
-	public static Weapon A_WeaponRandomGenerated() //tạo vũ khí ngẫu nhiên chỉ dành cho đồng minh
+    //Reload State
+    public void SetReloadState(Weapon origin, bool Random, int powerLevel, bool reloadState, int magCap, float loadInterval)
+    {
+        if (Random)
+        {
+            bool needReload = UnityEngine.Random.value >= 0.5f;
+
+            if (needReload)
+            {
+                origin.damageCount = origin.weaponType switch
+                {
+                    WeaponType.AutoCannon => 100 + (int)UnityEngine.Random.Range((powerLevel * 0.23f) * 5, (powerLevel * 0.45f) * 8),
+                    WeaponType.AntiMaterialCannon => 1 + (int)UnityEngine.Random.Range(powerLevel * 0.005f, powerLevel * 0.01f),
+                    WeaponType.Laser => 50 + (int)UnityEngine.Random.Range((powerLevel * 0.2f) * 3, (powerLevel * 0.38f) * 6),
+                    WeaponType.HeavyBomber => 5 + (int)UnityEngine.Random.Range(powerLevel * 0.05f, powerLevel * 0.08f),
+                    WeaponType.Shrapnel => 8 + (int)UnityEngine.Random.Range(powerLevel * 0.065f, powerLevel * 0.095f),
+                    _ => 15 + (int)UnityEngine.Random.Range((powerLevel * 0.07f) * 2, (powerLevel * 0.12f) * 3)
+                };
+
+                origin.reloadInterval = origin.weaponType switch
+                {
+                    WeaponType.AutoCannon => 8f - UnityEngine.Random.Range(powerLevel * 0.006f, powerLevel * 0.008f),
+                    WeaponType.AntiMaterialCannon => 20f - UnityEngine.Random.Range(powerLevel * 0.002f, powerLevel * 0.0035f),
+                    WeaponType.Laser => 6f - UnityEngine.Random.Range(powerLevel * 0.0037f, powerLevel * 0.0055f),
+                    WeaponType.HeavyBomber => 13f - UnityEngine.Random.Range(powerLevel * 0.0024f, powerLevel * 0.0032f),
+                    WeaponType.Shrapnel => 11.5f - UnityEngine.Random.Range(powerLevel * 0.0018f, powerLevel * 0.00265f),
+                    _ => 10f - UnityEngine.Random.Range(powerLevel * 0.0032f, powerLevel * 0.006f)
+                };
+            }
+            else { origin.damageCount = 0; origin.reloadInterval = 0; }
+        }
+        else
+        {
+            needReload = reloadState;
+            if (needReload) 
+            {
+                if (magCap >= 1)
+                {
+                    origin.damageCount = magCap;
+                }
+                else origin.damageCount = 1;
+
+                if(loadInterval >= 0.5f)
+                {
+                    origin.reloadInterval = loadInterval;
+                }else origin.reloadInterval = 1f;
+            }else { origin.damageCount = 0; origin.reloadInterval = 0; }
+        }
+        
+    }
+
+    //Set AmmunitionState
+    public void SetAmmunitionState(Weapon origin, bool random, int powerLevel, bool ammunitionState, int amount )
+    {
+        if(random)
+        {
+            bool haveAmmunition = UnityEngine.Random.value <= 0.75f;
+            if (haveAmmunition)
+            {
+                origin.ammunitionBase = origin.weaponType switch
+                {
+                    WeaponType.AutoCannon => 1000 + (int)UnityEngine.Random.Range((powerLevel * 0.5f) * 5, (powerLevel * 0.8f) * 7),
+                    WeaponType.AntiMaterialCannon => 5 + (int)UnityEngine.Random.Range(powerLevel * 0.008f, powerLevel * 0.015f),
+                    WeaponType.Laser => 500 + (int)UnityEngine.Random.Range((powerLevel * 0.35f) * 4, (powerLevel * 0.58f) * 8),
+                    WeaponType.HeavyBomber => 50 + (int)UnityEngine.Random.Range(powerLevel * 0.1f, powerLevel * 0.2f),
+                    WeaponType.Shrapnel => 80 + (int)UnityEngine.Random.Range(powerLevel * 0.12f, powerLevel * 0.23f),
+                    _ => 100 + (int)UnityEngine.Random.Range((powerLevel * 0.14f) * 3, (powerLevel * 0.22f) * 5)
+                };
+            }
+            else { origin.ammunitionBase = 0; }
+        }
+        else
+        {
+            origin.canHaveAmmunition = ammunitionState;
+            if (ammunitionState)
+            {
+                origin.ammunitionBase = amount >= 1 ? amount : 1;
+            }
+            else {origin.ammunitionBase = 0;}
+        }
+    }
+
+    //Range Decay
+    public void SetRangeDecay(Weapon origin, bool random, float amount)
+    {
+        if (random)
+        {
+            origin.rangeDecay = origin.weaponType switch
+            {
+                WeaponType.AutoCannon => UnityEngine.Random.Range(0.35f, 0.61f),
+                WeaponType.AntiMaterialCannon => UnityEngine.Random.Range(0.011f, 0.051f),
+                WeaponType.Laser => UnityEngine.Random.Range(0.5f, 0.81f),
+                WeaponType.HeavyBomber => UnityEngine.Random.Range(0.6f, 0.91f),
+                WeaponType.Shrapnel => UnityEngine.Random.Range(0.8f, 0.951f),
+                _ => UnityEngine.Random.Range(0.21f, 0.41f)
+            };
+        }
+        else 
+        {
+            if (amount >= 0f && amount <= 1f)
+            {
+                origin.rangeDecay = amount;
+            }
+            else origin.rangeDecay = 0.25f;
+        }
+    }
+
+    //Aoe State
+    public void SetAoeState(Weapon origin, bool random, int powerLevel, bool haveAOE, float damage, int range)
+    {
+        if (random)
+        {
+            bool AOE;
+            if (origin.weaponType != WeaponType.HeavyBomber)
+            {
+                AOE = UnityEngine.Random.value >= 0.5f;
+            }
+            else AOE = true;
+
+            if (AOE) 
+            {
+                origin.damageAOEbase = origin.weaponType switch
+                {
+                    WeaponType.AutoCannon => 5 + UnityEngine.Random.Range((powerLevel * 0.012f) * 1.05f, (powerLevel * 0.014f) * 1.075f),
+                    WeaponType.AntiMaterialCannon => 30 + UnityEngine.Random.Range((powerLevel * 0.02f) * 1.15f, (powerLevel * 0.035f) * 1.25f),
+                    WeaponType.Laser => 2.5f + UnityEngine.Random.Range((powerLevel * 0.003f) * 1.01f, (powerLevel * 0.006f) * 1.01f),
+                    WeaponType.HeavyBomber => 50 + UnityEngine.Random.Range((powerLevel * 0.03f) * 1.3f, (powerLevel * 0.055f) * 1.5f),
+                    WeaponType.Shrapnel => 20 + UnityEngine.Random.Range((powerLevel * 0.012f) * 1.23f, (powerLevel * 0.025f) * 1.35f),
+                    _ => 15 + UnityEngine.Random.Range((powerLevel * 0.015f) * 1.1f, (powerLevel * 0.02f) * 1.25f)
+                };
+
+                origin.rangeAOE = origin.weaponType switch
+                {
+                    WeaponType.AutoCannon => UnityEngine.Random.Range(1, 3),
+                    WeaponType.AntiMaterialCannon => UnityEngine.Random.Range(1, 4),
+                    WeaponType.Laser => 1,
+                    WeaponType.HeavyBomber => UnityEngine.Random.Range(2, 6),
+                    WeaponType.Shrapnel => UnityEngine.Random.Range(1, 3),
+                    _ => UnityEngine.Random.Range(1, 4)
+                };
+            }
+            else { origin.damageAOEbase = 0; origin.rangeAOE = 0; }
+
+        }
+    }
+
+    public static Weapon A_WeaponRandomGenerated() //tạo vũ khí ngẫu nhiên chỉ dành cho đồng minh
 	{
 		Weapon weapon = new Weapon();
 		
@@ -160,81 +268,19 @@ public class Weapon
         };
 
 		//Loại vũ khí
-		string weaponType = UnityEngine.Random.Range(1,7) switch
-        {
-            2 => WeaponType.AutoCannon.ToString(),
-            3 => WeaponType.AntiMaterialCannon.ToString(),
-            4 => WeaponType.Laser.ToString(),
-            5 => WeaponType.HeavyBomber.ToString(),
-            6 => WeaponType.Melee.ToString(),
-            _ => WeaponType.SiegeCannon.ToString(),
-        };
-		weapon.SetWeaponType(weaponType);
+		weapon.weaponType = weapon.SetWeaponType(true, "");
 
-		//Loại sát thương
-        string damageType = UnityEngine.Random.Range(1, 5) switch
-        {
-            2 => DamageType.Energy.ToString(),
-            3 => DamageType.Heat.ToString(),
-            4 => DamageType.Bio.ToString(),
-            _ => DamageType.Kinetic.ToString(),
-        };
-		weapon.SetDamageType(damageType);
+        //Loại sát thương
+        weapon.damageType = weapon.SetDamageType(true, "");
 
-		//Phần Reload
-		bool needReload = weapon.weaponType != WeaponType.Melee && UnityEngine.Random.value >= 0.5f;
-		int damageCount;
-		float loadInterval;
-        if (needReload)
-		{
-			damageCount = weapon.weaponType switch
-			{
-				WeaponType.AutoCannon => 100 + (int)UnityEngine.Random.Range((powerLevel * 0.23f) * 5, (powerLevel * 0.45f) * 8),
-				WeaponType.AntiMaterialCannon => 1 + (int)UnityEngine.Random.Range(powerLevel * 0.005f, powerLevel * 0.01f),
-				WeaponType.Laser => 50 + (int)UnityEngine.Random.Range((powerLevel * 0.2f) * 3, (powerLevel * 0.38f) * 6),
-				WeaponType.HeavyBomber => 5 + (int)UnityEngine.Random.Range(powerLevel * 0.05f, powerLevel * 0.08f),
-				_ => 10 + (int)UnityEngine.Random.Range((powerLevel * 0.07f) * 2, (powerLevel * 0.12f) * 3)
-			};
-
-            loadInterval = weapon.weaponType switch
-            {
-                WeaponType.AutoCannon => 8f - UnityEngine.Random.Range(powerLevel * 0.006f, powerLevel * 0.008f) ,
-                WeaponType.AntiMaterialCannon => 20f - UnityEngine.Random.Range(powerLevel * 0.002f, powerLevel * 0.0035f),
-                WeaponType.Laser => 6f - UnityEngine.Random.Range(powerLevel * 0.0037f, powerLevel * 0.0055f),
-                WeaponType.HeavyBomber => 13f - UnityEngine.Random.Range(powerLevel * 0.0024f, powerLevel * 0.0032f),
-                _ => 10f - UnityEngine.Random.Range(powerLevel * 0.0032f, powerLevel * 0.006f)
-            };
-        }
-		else { damageCount = 0; loadInterval = 0; }
-		weapon.SetReloadState(needReload,damageCount,loadInterval);
+        //Phần Reload
+        weapon.SetReloadState(weapon, true, powerLevel, false, 0, 0);
 
         //Phần Ammunition
-        bool haveAmmunition = weapon.weaponType != WeaponType.Melee && UnityEngine.Random.value >= 0.5f;
-        int ammunitionCount;
-        if (haveAmmunition)
-        {
-            ammunitionCount = weapon.weaponType switch
-            {
-                WeaponType.AutoCannon => 1000 + (int)UnityEngine.Random.Range((powerLevel * 0.5f) * 5, (powerLevel * 0.8f) * 7),
-                WeaponType.AntiMaterialCannon => 5 + (int)UnityEngine.Random.Range(powerLevel * 0.008f, powerLevel * 0.015f),
-                WeaponType.Laser => 500 + (int)UnityEngine.Random.Range((powerLevel * 0.35f) * 4, (powerLevel * 0.58f) * 8),
-                WeaponType.HeavyBomber => 50 + (int)UnityEngine.Random.Range(powerLevel * 0.1f, powerLevel * 0.2f),
-                _ => 100 + (int)UnityEngine.Random.Range((powerLevel * 0.14f) * 3, (powerLevel * 0.22f) * 5)
-            };
-        }
-        else { ammunitionCount = 0; }
-		weapon.SetAmmunitionState(haveAmmunition, ammunitionCount);
+        weapon.SetAmmunitionState(weapon, true, powerLevel, false, 0);
 
-		//Phần Range decay
-		float decay = weapon.weaponType switch
-        {
-            WeaponType.AutoCannon => UnityEngine.Random.Range(0.35f, 0.61f),
-            WeaponType.AntiMaterialCannon => UnityEngine.Random.Range(0.011f, 0.051f),
-            WeaponType.Laser => UnityEngine.Random.Range(0.5f, 0.81f),
-            WeaponType.HeavyBomber => UnityEngine.Random.Range(0.6f, 0.91f),
-            _ => UnityEngine.Random.Range(0.21f, 0.41f)
-        };
-		weapon.SetRangeDecay(decay);
+        //Phần Range decay
+        weapon.SetRangeDecay(weapon, true, 0);
 
 		//Phần AOE State
 		bool haveAOE;
@@ -266,9 +312,26 @@ public class Weapon
             };
         }
         else { count = 0; aoerange = 0; }
-		weapon.SetAoeState(haveAOE, count,aoerange);
 
-		//Phần Damage Interval
+        //Phần Damage Interval
+        float Damageinterval = weapon.weaponType switch
+        {
+            WeaponType.AutoCannon => UnityEngine.Random.Range(0.45f, 2.51f),
+            WeaponType.AntiMaterialCannon => UnityEngine.Random.Range(10f, 21.1f),
+            WeaponType.Laser => UnityEngine.Random.Range(0.25f, 1.01f),
+            WeaponType.HeavyBomber => UnityEngine.Random.Range(3.5f, 9.51f),
+            _ => UnityEngine.Random.Range(0.75f, 7.1f)
+        };
+
+        //Phần Damage
+        float damage = weapon.weaponType switch
+        {
+            WeaponType.AutoCannon =>  3f + UnityEngine.Random.Range((powerLevel/12f) * 1.15f, (powerLevel / 10f) * 1.2f),
+            WeaponType.AntiMaterialCannon => 100 + UnityEngine.Random.Range((powerLevel / 6f) * 3.35f, (powerLevel / 5f) * 4.5f),
+            WeaponType.Laser => 1 + UnityEngine.Random.Range((powerLevel / 14f) * 1.05f, (powerLevel / 16f) * 1.1f),
+            WeaponType.HeavyBomber => 60 + UnityEngine.Random.Range((powerLevel / 10f) * 2f, (powerLevel / 7f) * 3f),
+            _ => 40 + UnityEngine.Random.Range((powerLevel / 8f) * 1.5f, (powerLevel / 6f) * 2.5f)
+        };
 
         return weapon;
 	}
